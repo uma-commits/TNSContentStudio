@@ -8,6 +8,7 @@ type Bucket = { name: string; description: string };
 type RunState = {
   id: string;
   script_status: string;
+  script_output: string | null;
   image_prompt_status: string;
   image_status: string;
   voice_status: string;
@@ -164,6 +165,7 @@ export default function PipelineBoard({ personas }: { personas: Persona[] }) {
             })}
           </div>
           {error && <p className="mt-4 text-sm text-red-400">{error}</p>}
+          {run.script_status === "done" && run.script_output && <ScriptPreview output={run.script_output} />}
           {run.finalize_status === "done" && run.final_output && (
             <FinalOutput output={run.final_output} />
           )}
@@ -181,6 +183,41 @@ function StatusDot({ status }: { status: string }) {
     error: "bg-red-400",
   };
   return <span className={`h-2 w-2 rounded-full ${colors[status] || colors.pending}`} />;
+}
+
+function ScriptPreview({ output }: { output: string }) {
+  const script = JSON.parse(output) as {
+    hook: string;
+    body: string[];
+    close: string;
+    cta: string;
+    caption: string;
+    hashtags: string[];
+  };
+  return (
+    <div className="mt-6 space-y-2 border-t border-neutral-800 pt-6 text-sm">
+      <h3 className="mb-1 text-sm font-medium text-neutral-300">Script</h3>
+      <p>
+        <span className="text-neutral-500">Hook: </span>
+        {script.hook}
+      </p>
+      {script.body?.map((b, i) => (
+        <p key={i} className="text-neutral-200">
+          {b}
+        </p>
+      ))}
+      <p>
+        <span className="text-neutral-500">Close: </span>
+        {script.close}
+      </p>
+      <p>
+        <span className="text-neutral-500">CTA: </span>
+        {script.cta}
+      </p>
+      <p className="pt-2 text-neutral-400">{script.caption}</p>
+      <p className="text-neutral-500">{script.hashtags?.map((h) => `#${h.replace(/^#/, "")}`).join(" ")}</p>
+    </div>
+  );
 }
 
 function FinalOutput({ output }: { output: string }) {
