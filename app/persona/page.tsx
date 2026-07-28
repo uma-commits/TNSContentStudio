@@ -33,7 +33,12 @@ export default function PersonaPage() {
               <div key={p.id} className="card">
                 <div className="flex items-center justify-between">
                   <h3 className="font-medium">{p.name}</h3>
-                  <span className="text-xs text-neutral-500">{p.edge_voice}</span>
+                  <span className="flex items-center gap-2 text-xs text-neutral-500">
+                    <span className={`badge ${p.video_engine === "heygen" ? "bg-purple-900/50 text-purple-300" : "bg-neutral-800 text-neutral-400"}`}>
+                      {p.video_engine === "heygen" ? "HeyGen" : "Free"}
+                    </span>
+                    {p.video_engine === "heygen" ? p.heygen_avatar_id : p.edge_voice}
+                  </span>
                 </div>
                 <p className="mt-1 text-sm text-neutral-400">{p.backstory}</p>
               </div>

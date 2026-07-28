@@ -17,12 +17,20 @@ type RunState = {
   [key: string]: unknown;
 };
 
-const STEPS: { key: string; label: string; endpoint: string; statusKey: keyof RunState }[] = [
+type Step = { key: string; label: string; endpoint: string; statusKey: keyof RunState };
+
+const FREE_STEPS: Step[] = [
   { key: "script", label: "Script", endpoint: "script", statusKey: "script_status" },
   { key: "image-prompt", label: "Image Prompt", endpoint: "image-prompt", statusKey: "image_prompt_status" },
   { key: "image", label: "Image", endpoint: "image", statusKey: "image_status" },
   { key: "voice", label: "Voice", endpoint: "voice", statusKey: "voice_status" },
   { key: "video", label: "Video", endpoint: "video", statusKey: "video_status" },
+  { key: "finalize", label: "Finalize", endpoint: "finalize", statusKey: "finalize_status" },
+];
+
+const HEYGEN_STEPS: Step[] = [
+  { key: "script", label: "Script", endpoint: "script", statusKey: "script_status" },
+  { key: "avatar-video", label: "Avatar Video", endpoint: "avatar-video", statusKey: "video_status" },
   { key: "finalize", label: "Finalize", endpoint: "finalize", statusKey: "finalize_status" },
 ];
 
@@ -33,11 +41,13 @@ export default function PipelineBoard({ personas }: { personas: Persona[] }) {
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [run, setRun] = useState<RunState | null>(null);
+  const [runPersona, setRunPersona] = useState<Persona | null>(null);
   const [runningStep, setRunningStep] = useState<string | null>(null);
 
   const persona = personas.find((p) => p.id === personaId);
   const buckets: Bucket[] = useMemo(() => (persona ? JSON.parse(persona.content_buckets) : []), [persona]);
   const activeBucket = bucketName || buckets[0]?.name || "";
+  const steps = runPersona?.video_engine === "heygen" ? HEYGEN_STEPS : FREE_STEPS;
 
   async function createRun(e: React.FormEvent) {
     e.preventDefault();
@@ -56,6 +66,7 @@ export default function PipelineBoard({ personas }: { personas: Persona[] }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to create run");
       setRun(data.run);
+      setRunPersona(persona ?? null);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -131,10 +142,10 @@ export default function PipelineBoard({ personas }: { personas: Persona[] }) {
           <p className="mb-4 text-sm text-neutral-400">
             Run started. Step through the pipeline left to right — each step needs the previous one done.
           </p>
-          <div className="grid gap-3 sm:grid-cols-6">
-            {STEPS.map((step, i) => {
+          <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }}>
+            {steps.map((step, i) => {
               const status = (run[step.statusKey] as string) || "pending";
-              const prevDone = i === 0 || (run[STEPS[i - 1].statusKey] as string) === "done";
+              const prevDone = i === 0 || (run[steps[i - 1].statusKey] as string) === "done";
               return (
                 <div key={step.key} className="flex flex-col items-center gap-2 text-center">
                   <span className="text-xs font-medium text-neutral-500">

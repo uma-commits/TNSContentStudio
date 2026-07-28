@@ -23,13 +23,17 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     visual_styles: body.visual_styles ? JSON.stringify(body.visual_styles) : existing.visual_styles,
     content_buckets: body.content_buckets ? JSON.stringify(body.content_buckets) : existing.content_buckets,
     edge_voice: body.edge_voice ?? existing.edge_voice,
+    video_engine: body.video_engine ?? existing.video_engine,
+    heygen_avatar_id: body.heygen_avatar_id ?? existing.heygen_avatar_id,
+    heygen_voice_id: body.heygen_voice_id ?? existing.heygen_voice_id,
     id,
   };
 
   db.prepare(
     `UPDATE personas SET name=@name, backstory=@backstory, voice_dna=@voice_dna, slang=@slang,
      physical_description=@physical_description, visual_styles=@visual_styles,
-     content_buckets=@content_buckets, edge_voice=@edge_voice WHERE id=@id`
+     content_buckets=@content_buckets, edge_voice=@edge_voice, video_engine=@video_engine,
+     heygen_avatar_id=@heygen_avatar_id, heygen_voice_id=@heygen_voice_id WHERE id=@id`
   ).run(merged);
 
   const persona = db.prepare(`SELECT * FROM personas WHERE id = ?`).get(id);

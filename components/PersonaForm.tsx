@@ -25,6 +25,9 @@ export default function PersonaForm() {
   const [edgeVoice, setEdgeVoice] = useState(EDGE_VOICES[0]);
   const [styles, setStyles] = useState<StyleRow[]>([{ name: "", prompt: "" }]);
   const [buckets, setBuckets] = useState<BucketRow[]>([{ name: "", description: "" }]);
+  const [videoEngine, setVideoEngine] = useState<"free" | "heygen">("free");
+  const [heygenAvatarId, setHeygenAvatarId] = useState("");
+  const [heygenVoiceId, setHeygenVoiceId] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -34,16 +37,25 @@ export default function PersonaForm() {
 
     const cleanStyles = styles.filter((s) => s.name && s.prompt);
     const cleanBuckets = buckets.filter((b) => b.name && b.description);
-    if (!name || !backstory || !voiceDna || !physicalDescription) {
-      setError("Name, backstory, voice DNA, and physical description are required.");
-      return;
-    }
-    if (cleanStyles.length === 0) {
-      setError("Add at least one visual style.");
+    if (!name || !backstory || !voiceDna) {
+      setError("Name, backstory, and voice DNA are required.");
       return;
     }
     if (cleanBuckets.length === 0) {
       setError("Add at least one content bucket.");
+      return;
+    }
+    if (videoEngine === "free") {
+      if (!physicalDescription) {
+        setError("Physical description is required for the free engine.");
+        return;
+      }
+      if (cleanStyles.length === 0) {
+        setError("Add at least one visual style for the free engine.");
+        return;
+      }
+    } else if (!heygenAvatarId || !heygenVoiceId) {
+      setError("HeyGen avatar ID and voice ID are required for the HeyGen engine.");
       return;
     }
 
@@ -61,6 +73,9 @@ export default function PersonaForm() {
           edge_voice: edgeVoice,
           visual_styles: cleanStyles,
           content_buckets: cleanBuckets,
+          video_engine: videoEngine,
+          heygen_avatar_id: heygenAvatarId,
+          heygen_voice_id: heygenVoiceId,
         }),
       });
       const data = await res.json();
@@ -73,6 +88,9 @@ export default function PersonaForm() {
       setPhysicalDescription("");
       setStyles([{ name: "", prompt: "" }]);
       setBuckets([{ name: "", description: "" }]);
+      setVideoEngine("free");
+      setHeygenAvatarId("");
+      setHeygenVoiceId("");
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -115,7 +133,57 @@ export default function PersonaForm() {
       </div>
 
       <div>
-        <label className="label">Fixed physical description (drives image consistency)</label>
+        <label className="label">Video engine</label>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            className={videoEngine === "free" ? "btn" : "btn-ghost"}
+            onClick={() => setVideoEngine("free")}
+          >
+            Free (image + edge-tts + pan/zoom)
+          </button>
+          <button
+            type="button"
+            className={videoEngine === "heygen" ? "btn" : "btn-ghost"}
+            onClick={() => setVideoEngine("heygen")}
+          >
+            HeyGen avatar (paid, real lip-sync)
+          </button>
+        </div>
+        <p className="mt-1 text-xs text-neutral-500">
+          {videoEngine === "free"
+            ? "Uses a generated character image and a pan/zoom video — no talking-head lip-sync."
+            : "Skips the image/voice/video steps and generates one lip-synced avatar video via HeyGen. Requires HEYGEN_API_KEY set on the server, plus an avatar and voice ID below."}
+        </p>
+      </div>
+
+      {videoEngine === "heygen" && (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className="label">HeyGen avatar ID</label>
+            <input
+              className="input"
+              value={heygenAvatarId}
+              onChange={(e) => setHeygenAvatarId(e.target.value)}
+              placeholder="From your HeyGen avatar library"
+            />
+          </div>
+          <div>
+            <label className="label">HeyGen voice ID</label>
+            <input
+              className="input"
+              value={heygenVoiceId}
+              onChange={(e) => setHeygenVoiceId(e.target.value)}
+              placeholder="From your HeyGen voice library"
+            />
+          </div>
+        </div>
+      )}
+
+      <div>
+        <label className="label">
+          Fixed physical description (drives image consistency){videoEngine === "heygen" ? " — optional for HeyGen" : ""}
+        </label>
         <textarea
           className="input min-h-16"
           value={physicalDescription}
@@ -124,15 +192,17 @@ export default function PersonaForm() {
         />
       </div>
 
-      <ListEditor
-        title="Visual styles"
-        rows={styles}
-        setRows={setStyles}
-        fields={[
-          { key: "name", placeholder: "Style name" },
-          { key: "prompt", placeholder: "Backdrop, lighting, mood description" },
-        ]}
-      />
+      {videoEngine === "free" && (
+        <ListEditor
+          title="Visual styles"
+          rows={styles}
+          setRows={setStyles}
+          fields={[
+            { key: "name", placeholder: "Style name" },
+            { key: "prompt", placeholder: "Backdrop, lighting, mood description" },
+          ]}
+        />
+      )}
 
       <ListEditor
         title="Content buckets"

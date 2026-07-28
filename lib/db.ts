@@ -28,6 +28,9 @@ db.exec(`
     visual_styles TEXT NOT NULL,      -- JSON array of {name, prompt}
     content_buckets TEXT NOT NULL,    -- JSON array of {name, description}
     edge_voice TEXT NOT NULL DEFAULT 'en-AU-WilliamNeural',
+    video_engine TEXT NOT NULL DEFAULT 'free',   -- 'free' | 'heygen'
+    heygen_avatar_id TEXT NOT NULL DEFAULT '',
+    heygen_voice_id TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
@@ -62,6 +65,20 @@ db.exec(`
   );
 `);
 
+// Lightweight migration for columns added after the table already existed in
+// a deployed database — SQLite has no "ADD COLUMN IF NOT EXISTS", so check first.
+const existingColumns = new Set(
+  (db.prepare(`PRAGMA table_info(personas)`).all() as { name: string }[]).map((c) => c.name)
+);
+const migrations: [string, string][] = [
+  ["video_engine", `ALTER TABLE personas ADD COLUMN video_engine TEXT NOT NULL DEFAULT 'free'`],
+  ["heygen_avatar_id", `ALTER TABLE personas ADD COLUMN heygen_avatar_id TEXT NOT NULL DEFAULT ''`],
+  ["heygen_voice_id", `ALTER TABLE personas ADD COLUMN heygen_voice_id TEXT NOT NULL DEFAULT ''`],
+];
+for (const [column, sql] of migrations) {
+  if (!existingColumns.has(column)) db.exec(sql);
+}
+
 export type Persona = {
   id: string;
   name: string;
@@ -72,6 +89,9 @@ export type Persona = {
   visual_styles: string;
   content_buckets: string;
   edge_voice: string;
+  video_engine: string;
+  heygen_avatar_id: string;
+  heygen_voice_id: string;
   created_at: string;
 };
 
