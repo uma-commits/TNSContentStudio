@@ -17,6 +17,8 @@ export async function generateAvatarVideo(
   if (!avatarId) throw new Error("This persona has no HeyGen avatar ID configured");
   if (!voiceId) throw new Error("This persona has no HeyGen voice ID configured");
 
+  const character = await resolveCharacter(avatarId, apiKey);
+
   const createRes = await fetch("https://api.heygen.com/v2/video/generate", {
     method: "POST",
     signal: AbortSignal.timeout(30_000),
@@ -24,7 +26,7 @@ export async function generateAvatarVideo(
     body: JSON.stringify({
       video_inputs: [
         {
-          character: { type: "avatar", avatar_id: avatarId, avatar_style: "normal" },
+          character,
           voice: { type: "text", input_text: text, voice_id: voiceId },
         },
       ],
@@ -50,6 +52,29 @@ export async function generateAvatarVideo(
   const filePath = path.join(dir, "reel.mp4");
   await fs.writeFile(filePath, buffer);
   return filePath;
+}
+
+// HeyGen has two distinct avatar kinds that use different request shapes:
+// stock/interactive avatars (`type: "avatar"`, keyed by avatar_id) and
+// custom photo-based "instant avatar" looks (`type: "talking_photo"`, keyed
+// by talking_photo_id). The persona form only stores one ID, so this checks
+// which kind it is rather than requiring the user to know the distinction.
+async function resolveCharacter(
+  avatarId: string,
+  apiKey: string
+): Promise<Record<string, string>> {
+  const res = await fetch("https://api.heygen.com/v2/avatars", {
+    headers: { "X-Api-Key": apiKey },
+    signal: AbortSignal.timeout(15_000),
+  });
+  if (res.ok) {
+    const data = await res.json();
+    const avatars: { avatar_id: string }[] = data?.data?.avatars || [];
+    if (avatars.some((a) => a.avatar_id === avatarId)) {
+      return { type: "avatar", avatar_id: avatarId, avatar_style: "normal" };
+    }
+  }
+  return { type: "talking_photo", talking_photo_id: avatarId };
 }
 
 async function pollUntilReady(videoId: string, apiKey: string): Promise<string> {
