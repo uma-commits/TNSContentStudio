@@ -17,29 +17,7 @@ export async function generateAvatarVideo(
   if (!avatarId) throw new Error("This persona has no HeyGen avatar ID configured");
   if (!voiceId) throw new Error("This persona has no HeyGen voice ID configured");
 
-  const character = await resolveCharacter(avatarId, apiKey);
-
-  const createRes = await fetch("https://api.heygen.com/v2/video/generate", {
-    method: "POST",
-    signal: AbortSignal.timeout(30_000),
-    headers: { "X-Api-Key": apiKey, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      video_inputs: [
-        {
-          character,
-          voice: { type: "text", input_text: text, voice_id: voiceId },
-        },
-      ],
-      dimension: { width: 1080, height: 1920 },
-    }),
-  });
-
-  if (!createRes.ok) {
-    throw new Error(`HeyGen video creation failed: ${createRes.status} ${await createRes.text()}`);
-  }
-  const created = await createRes.json();
-  const videoId: string | undefined = created?.data?.video_id;
-  if (!videoId) throw new Error(`HeyGen response had no video_id: ${JSON.stringify(created)}`);
+  const videoId = await createVideo(text, avatarId, voiceId, apiKey);
 
   const videoUrl = await pollUntilReady(videoId, apiKey);
 
@@ -55,26 +33,56 @@ export async function generateAvatarVideo(
 }
 
 // HeyGen has two distinct avatar kinds that use different request shapes:
-// stock/interactive avatars (`type: "avatar"`, keyed by avatar_id) and
 // custom photo-based "instant avatar" looks (`type: "talking_photo"`, keyed
-// by talking_photo_id). The persona form only stores one ID, so this checks
-// which kind it is rather than requiring the user to know the distinction.
-async function resolveCharacter(
-  avatarId: string,
+// by talking_photo_id — the common case for a user's own cloned avatar) and
+// stock/interactive avatars (`type: "avatar"`, keyed by avatar_id). Rather
+// than pre-checking which kind an ID is (that meant fetching HeyGen's full
+// ~1300-avatar list on every call, which is slow and was timing out), try
+// talking_photo first and fall back to avatar only on a real type mismatch.
+async function createVideo(text: string, avatarId: string, voiceId: string, apiKey: string): Promise<string> {
+  const talkingPhotoAttempt = await tryCreateVideo(
+    text,
+    { type: "talking_photo", talking_photo_id: avatarId },
+    voiceId,
+    apiKey
+  );
+  if (talkingPhotoAttempt.ok) return talkingPhotoAttempt.videoId;
+
+  const avatarAttempt = await tryCreateVideo(
+    text,
+    { type: "avatar", avatar_id: avatarId, avatar_style: "normal" },
+    voiceId,
+    apiKey
+  );
+  if (avatarAttempt.ok) return avatarAttempt.videoId;
+
+  throw new Error(
+    `HeyGen video creation failed for avatar ID "${avatarId}" as both talking_photo and avatar: ` +
+      `${talkingPhotoAttempt.error} | ${avatarAttempt.error}`
+  );
+}
+
+async function tryCreateVideo(
+  text: string,
+  character: Record<string, string>,
+  voiceId: string,
   apiKey: string
-): Promise<Record<string, string>> {
-  const res = await fetch("https://api.heygen.com/v2/avatars", {
-    headers: { "X-Api-Key": apiKey },
-    signal: AbortSignal.timeout(15_000),
+): Promise<{ ok: true; videoId: string } | { ok: false; error: string }> {
+  const res = await fetch("https://api.heygen.com/v2/video/generate", {
+    method: "POST",
+    signal: AbortSignal.timeout(30_000),
+    headers: { "X-Api-Key": apiKey, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      video_inputs: [{ character, voice: { type: "text", input_text: text, voice_id: voiceId } }],
+      dimension: { width: 1080, height: 1920 },
+    }),
   });
-  if (res.ok) {
-    const data = await res.json();
-    const avatars: { avatar_id: string }[] = data?.data?.avatars || [];
-    if (avatars.some((a) => a.avatar_id === avatarId)) {
-      return { type: "avatar", avatar_id: avatarId, avatar_style: "normal" };
-    }
-  }
-  return { type: "talking_photo", talking_photo_id: avatarId };
+
+  if (!res.ok) return { ok: false, error: `${res.status} ${await res.text()}` };
+  const data = await res.json();
+  const videoId: string | undefined = data?.data?.video_id;
+  if (!videoId) return { ok: false, error: `no video_id in response: ${JSON.stringify(data)}` };
+  return { ok: true, videoId };
 }
 
 async function pollUntilReady(videoId: string, apiKey: string): Promise<string> {
