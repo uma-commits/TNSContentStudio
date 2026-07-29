@@ -19,9 +19,12 @@ export async function POST(req: NextRequest) {
     content_buckets,
     edge_voice = "en-AU-WilliamNeural",
     video_engine = "free",
-    heygen_avatar_id = "",
-    heygen_voice_id = "",
   } = body;
+  // Trim IDs specifically — a stray trailing space (easy to pick up on
+  // copy-paste) makes HeyGen reject an otherwise-valid ID with a confusing
+  // "not found" error instead of an obvious validation message.
+  const heygen_avatar_id = String(body.heygen_avatar_id ?? "").trim();
+  const heygen_voice_id = String(body.heygen_voice_id ?? "").trim();
 
   if (!["free", "heygen"].includes(video_engine)) {
     return NextResponse.json({ error: "video_engine must be 'free' or 'heygen'" }, { status: 400 });

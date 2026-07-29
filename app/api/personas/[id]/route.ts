@@ -24,8 +24,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     content_buckets: body.content_buckets ? JSON.stringify(body.content_buckets) : existing.content_buckets,
     edge_voice: body.edge_voice ?? existing.edge_voice,
     video_engine: body.video_engine ?? existing.video_engine,
-    heygen_avatar_id: body.heygen_avatar_id ?? existing.heygen_avatar_id,
-    heygen_voice_id: body.heygen_voice_id ?? existing.heygen_voice_id,
+    heygen_avatar_id:
+      body.heygen_avatar_id !== undefined ? String(body.heygen_avatar_id).trim() : existing.heygen_avatar_id,
+    heygen_voice_id:
+      body.heygen_voice_id !== undefined ? String(body.heygen_voice_id).trim() : existing.heygen_voice_id,
     id,
   };
 
