@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  basePath: "/contentstudio",
+  basePath: "/labs/aicontentstudio",
   output: "standalone",
   outputFileTracingRoot: __dirname,
   eslint: { ignoreDuringBuilds: true },
