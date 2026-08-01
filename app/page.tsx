@@ -45,6 +45,9 @@ export default async function DashboardPage({
           </p>
         </div>
         <div className="flex gap-2">
+          <Link href="/brief" className="btn">
+            Generate from URL →
+          </Link>
           <Link href="/spy" className="btn-ghost">
             Account spy →
           </Link>

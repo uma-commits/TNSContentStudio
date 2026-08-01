@@ -3,18 +3,10 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { BASE_PATH } from "@/lib/basePath";
+import { EDGE_VOICES } from "@/lib/edgeVoices";
 
 type StyleRow = { name: string; prompt: string };
 type BucketRow = { name: string; description: string };
-
-const EDGE_VOICES = [
-  "en-AU-WilliamNeural",
-  "en-AU-NatashaNeural",
-  "en-US-GuyNeural",
-  "en-US-JennyNeural",
-  "en-GB-RyanNeural",
-  "en-GB-SoniaNeural",
-];
 
 export default function PersonaForm() {
   const router = useRouter();
@@ -23,7 +15,7 @@ export default function PersonaForm() {
   const [voiceDna, setVoiceDna] = useState("");
   const [slang, setSlang] = useState("");
   const [physicalDescription, setPhysicalDescription] = useState("");
-  const [edgeVoice, setEdgeVoice] = useState(EDGE_VOICES[0]);
+  const [edgeVoice, setEdgeVoice] = useState<string>(EDGE_VOICES[0]);
   const [styles, setStyles] = useState<StyleRow[]>([{ name: "", prompt: "" }]);
   const [buckets, setBuckets] = useState<BucketRow[]>([{ name: "", description: "" }]);
   const [videoEngine, setVideoEngine] = useState<"free" | "heygen">("free");

@@ -58,6 +58,7 @@ export default function RunSteps({
   const [run, setRun] = useState<RunState>(initialRun);
   const [error, setError] = useState<string | null>(null);
   const [runningStep, setRunningStep] = useState<string | null>(null);
+  const [autoRunning, setAutoRunning] = useState(false);
 
   const middleSteps =
     videoEngine === "heygen" ? HEYGEN_STEPS : run.template === "carousel" ? CAROUSEL_STEPS : VIDEO_STEPS;
@@ -69,26 +70,58 @@ export default function RunSteps({
     FINALIZE_STEP,
   ];
 
-  async function runStep(endpoint: string) {
-    setError(null);
+  async function runStepReturning(endpoint: string): Promise<RunState | null> {
     setRunningStep(endpoint);
     try {
       const res = await fetch(`${BASE_PATH}/api/runs/${run.id}/${endpoint}`, { method: "POST" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `Step "${endpoint}" failed`);
       setRun(data.run);
+      return data.run as RunState;
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
+      return null;
     } finally {
       setRunningStep(null);
     }
   }
 
+  async function runStep(endpoint: string) {
+    setError(null);
+    await runStepReturning(endpoint);
+  }
+
+  // "Approve & generate" — runs every remaining pending step in order
+  // without further clicks, for when the human just wants to look at the
+  // script once and let the rest happen automatically.
+  async function approveAndGenerate() {
+    setError(null);
+    setAutoRunning(true);
+    let current: RunState = run;
+    const remaining = steps.filter((s) => s.key !== "remix" && (current[s.statusKey] as string) !== "done");
+    for (const step of remaining) {
+      const updated = await runStepReturning(step.endpoint);
+      if (!updated) break;
+      current = updated;
+    }
+    setAutoRunning(false);
+  }
+
+  const canApprove = run.script_status === "done" && run.finalize_status !== "done";
+
   return (
     <div className="card">
-      <p className="mb-4 text-sm text-neutral-400">
-        Step through the pipeline left to right — each step needs the previous one done.
-      </p>
+      <div className="mb-4 flex items-center justify-between gap-4">
+        <p className="text-sm text-neutral-400">
+          Step through the pipeline left to right, or approve the script once and let the rest run
+          on its own.
+        </p>
+        {canApprove && (
+          <button className="btn shrink-0" onClick={approveAndGenerate} disabled={autoRunning || runningStep !== null}>
+            {autoRunning ? `Generating… (${runningStep || "…"})` : "Approve & generate →"}
+          </button>
+        )}
+      </div>
       <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }}>
         {steps.map((step, i) => {
           const status = (run[step.statusKey] as string) || "pending";
@@ -101,7 +134,7 @@ export default function RunSteps({
               <StatusDot status={status} />
               <button
                 className="btn-ghost w-full justify-center text-xs"
-                disabled={!prevDone || status === "running" || runningStep !== null}
+                disabled={!prevDone || status === "running" || runningStep !== null || autoRunning}
                 onClick={() => runStep(step.endpoint)}
               >
                 {runningStep === step.endpoint ? "Running…" : status === "done" ? "Re-run" : "Run"}

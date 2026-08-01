@@ -19,6 +19,11 @@ const FREE_MODELS = {
     "nvidia/nemotron-nano-9b-v2:free",
     "openai/gpt-oss-20b:free",
   ],
+  brief: [
+    "google/gemma-3-27b-it:free",
+    "openai/gpt-oss-20b:free",
+    "nvidia/nemotron-nano-9b-v2:free",
+  ],
 } as const;
 
 export type ChatTask = keyof typeof FREE_MODELS;
