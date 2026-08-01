@@ -15,7 +15,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { persona_id, topic, content_bucket } = body;
+  const { persona_id, topic, content_bucket, source_url } = body;
 
   if (!persona_id || !topic || !content_bucket) {
     return NextResponse.json({ error: "persona_id, topic, content_bucket are required" }, { status: 400 });
@@ -23,14 +23,17 @@ export async function POST(req: NextRequest) {
   if (typeof topic !== "string" || topic.trim().length < 5) {
     return NextResponse.json({ error: "Topic too short — give it at least 5 characters to work with." }, { status: 400 });
   }
+  if (source_url && typeof source_url !== "string") {
+    return NextResponse.json({ error: "source_url must be a string" }, { status: 400 });
+  }
 
   const persona = db.prepare(`SELECT id FROM personas WHERE id = ?`).get(persona_id);
   if (!persona) return NextResponse.json({ error: "persona not found" }, { status: 404 });
 
   const id = newId();
   db.prepare(
-    `INSERT INTO runs (id, persona_id, topic, content_bucket) VALUES (?, ?, ?, ?)`
-  ).run(id, persona_id, topic.trim(), content_bucket);
+    `INSERT INTO runs (id, persona_id, topic, content_bucket, source_url) VALUES (?, ?, ?, ?, ?)`
+  ).run(id, persona_id, topic.trim(), content_bucket, (source_url || "").trim());
 
   const run = db.prepare(`SELECT * FROM runs WHERE id = ?`).get(id) as Run;
   return NextResponse.json({ run }, { status: 201 });

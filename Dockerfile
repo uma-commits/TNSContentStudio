@@ -18,7 +18,7 @@ ENV NODE_ENV=production
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg python3 python3-pip \
-    && pip3 install --no-cache-dir --break-system-packages edge-tts \
+    && pip3 install --no-cache-dir --break-system-packages edge-tts yt-dlp \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /app/.next/standalone ./

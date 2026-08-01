@@ -33,7 +33,24 @@ Hard requirements:
   "visual_rationale": "string"
 }`;
 
-  const user = `Content bucket: ${bucket.name} — ${bucket.description}\nTopic: ${run.topic}`;
+  const remix = run.remix_output
+    ? (JSON.parse(run.remix_output) as {
+        source_hook: string;
+        hook_pattern: string;
+        structure: string[];
+        remix_angle: string;
+      })
+    : null;
+
+  const user = remix
+    ? `Content bucket: ${bucket.name} — ${bucket.description}\nTopic: ${run.topic}\n\n` +
+      `Remix this viral video's structure instead of writing from scratch:\n` +
+      `Original hook: ${remix.source_hook}\n` +
+      `Hook pattern to reuse: ${remix.hook_pattern}\n` +
+      `Structure to follow: ${remix.structure.join(" → ")}\n` +
+      `Remix angle: ${remix.remix_angle}\n` +
+      `Keep the pattern and pacing, but write entirely original wording in the persona's own voice — do not copy the source's exact lines.`
+    : `Content bucket: ${bucket.name} — ${bucket.description}\nTopic: ${run.topic}`;
 
   return runStage(id, "script_status", async () => {
     const parsed = (await chatJSON("script", system, user)) as {

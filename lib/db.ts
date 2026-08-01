@@ -39,6 +39,10 @@ db.exec(`
     persona_id TEXT NOT NULL,
     topic TEXT NOT NULL,
     content_bucket TEXT NOT NULL,
+    source_url TEXT NOT NULL DEFAULT '',
+
+    remix_status TEXT NOT NULL DEFAULT 'pending',
+    remix_output TEXT,
 
     script_status TEXT NOT NULL DEFAULT 'pending',
     script_output TEXT,
@@ -79,6 +83,18 @@ for (const [column, sql] of migrations) {
   if (!existingColumns.has(column)) db.exec(sql);
 }
 
+const existingRunColumns = new Set(
+  (db.prepare(`PRAGMA table_info(runs)`).all() as { name: string }[]).map((c) => c.name)
+);
+const runMigrations: [string, string][] = [
+  ["source_url", `ALTER TABLE runs ADD COLUMN source_url TEXT NOT NULL DEFAULT ''`],
+  ["remix_status", `ALTER TABLE runs ADD COLUMN remix_status TEXT NOT NULL DEFAULT 'pending'`],
+  ["remix_output", `ALTER TABLE runs ADD COLUMN remix_output TEXT`],
+];
+for (const [column, sql] of runMigrations) {
+  if (!existingRunColumns.has(column)) db.exec(sql);
+}
+
 export type Persona = {
   id: string;
   name: string;
@@ -100,6 +116,9 @@ export type Run = {
   persona_id: string;
   topic: string;
   content_bucket: string;
+  source_url: string;
+  remix_status: string;
+  remix_output: string | null;
   script_status: string;
   script_output: string | null;
   image_prompt_status: string;

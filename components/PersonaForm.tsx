@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { BASE_PATH } from "@/lib/basePath";
 
 type StyleRow = { name: string; prompt: string };
 type BucketRow = { name: string; description: string };
@@ -61,7 +62,7 @@ export default function PersonaForm() {
 
     setSaving(true);
     try {
-      const res = await fetch("/contentstudio/api/personas", {
+      const res = await fetch(`${BASE_PATH}/api/personas`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -1,9 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { BASE_PATH } from "@/lib/basePath";
 
 export type RunState = {
   id: string;
+  source_url: string;
+  remix_status: string;
+  remix_output: string | null;
   script_status: string;
   script_output: string | null;
   image_prompt_status: string;
@@ -16,6 +20,8 @@ export type RunState = {
 };
 
 type Step = { key: string; label: string; endpoint: string; statusKey: keyof RunState };
+
+const REMIX_STEP: Step = { key: "remix", label: "Remix", endpoint: "remix", statusKey: "remix_status" };
 
 const FREE_STEPS: Step[] = [
   { key: "script", label: "Script", endpoint: "script", statusKey: "script_status" },
@@ -42,13 +48,14 @@ export default function RunSteps({
   const [run, setRun] = useState<RunState>(initialRun);
   const [error, setError] = useState<string | null>(null);
   const [runningStep, setRunningStep] = useState<string | null>(null);
-  const steps = videoEngine === "heygen" ? HEYGEN_STEPS : FREE_STEPS;
+  const baseSteps = videoEngine === "heygen" ? HEYGEN_STEPS : FREE_STEPS;
+  const steps = run.source_url ? [REMIX_STEP, ...baseSteps] : baseSteps;
 
   async function runStep(endpoint: string) {
     setError(null);
     setRunningStep(endpoint);
     try {
-      const res = await fetch(`/contentstudio/api/runs/${run.id}/${endpoint}`, { method: "POST" });
+      const res = await fetch(`${BASE_PATH}/api/runs/${run.id}/${endpoint}`, { method: "POST" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `Step "${endpoint}" failed`);
       setRun(data.run);
@@ -86,6 +93,7 @@ export default function RunSteps({
         })}
       </div>
       {error && <p className="mt-4 text-sm text-red-400">{error}</p>}
+      {run.remix_status === "done" && run.remix_output && <RemixPreview output={run.remix_output} />}
       {run.script_status === "done" && run.script_output && <ScriptPreview output={run.script_output} />}
       {run.finalize_status === "done" && run.final_output && <FinalOutput output={run.final_output} />}
     </div>
@@ -100,6 +108,36 @@ function StatusDot({ status }: { status: string }) {
     error: "bg-red-400",
   };
   return <span className={`h-2 w-2 rounded-full ${colors[status] || colors.pending}`} />;
+}
+
+function RemixPreview({ output }: { output: string }) {
+  const remix = JSON.parse(output) as {
+    source_hook: string;
+    hook_pattern: string;
+    structure: string[];
+    remix_angle: string;
+  };
+  return (
+    <div className="mt-6 space-y-2 border-t border-neutral-800 pt-6 text-sm">
+      <h3 className="mb-1 text-sm font-medium text-neutral-300">Remix analysis</h3>
+      <p>
+        <span className="text-neutral-500">Source hook: </span>
+        {remix.source_hook}
+      </p>
+      <p>
+        <span className="text-neutral-500">Hook pattern: </span>
+        {remix.hook_pattern}
+      </p>
+      <p>
+        <span className="text-neutral-500">Structure: </span>
+        {remix.structure?.join(" → ")}
+      </p>
+      <p>
+        <span className="text-neutral-500">Remix angle: </span>
+        {remix.remix_angle}
+      </p>
+    </div>
+  );
 }
 
 function ScriptPreview({ output }: { output: string }) {

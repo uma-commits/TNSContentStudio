@@ -33,7 +33,7 @@ export async function chatJSON(task: ChatTask, systemPrompt: string, userPrompt:
         headers: {
           Authorization: `Bearer ${apiKey}`,
           "Content-Type": "application/json",
-          "HTTP-Referer": "https://www.truenorthlink.com/contentstudio",
+          "HTTP-Referer": "https://www.truenorthlink.com/labs/ugc_content_yorbi",
           "X-Title": "Content Studio",
         },
         body: JSON.stringify({

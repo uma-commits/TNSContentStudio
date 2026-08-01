@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
+import { BASE_PATH } from "@/lib/basePath";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Content Studio",
   description: "Topic → script → image → voice → video pipeline for AI-influencer reels.",
-  icons: { icon: "/contentstudio/favicon.ico" },
+  icons: { icon: `${BASE_PATH}/favicon.ico` },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

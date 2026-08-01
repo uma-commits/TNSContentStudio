@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { loadRunWithPersona, runStage } from "@/lib/stage";
+import { BASE_PATH } from "@/lib/basePath";
 import path from "path";
 
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -16,7 +17,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
 
   return runStage(id, "finalize_status", async () => {
     const summary = {
-      video_url: `/contentstudio/api/media/${id}/${path.basename(run.video_path!)}`,
+      video_url: `${BASE_PATH}/api/media/${id}/${path.basename(run.video_path!)}`,
       caption: script.caption,
       hashtags: script.hashtags,
       status: "ready_for_review",

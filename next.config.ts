@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
+import { BASE_PATH } from "./lib/basePath";
 
 const nextConfig: NextConfig = {
-  basePath: "/labs/ugc_content_yorbi",
+  basePath: BASE_PATH,
   output: "standalone",
   outputFileTracingRoot: __dirname,
   eslint: { ignoreDuringBuilds: true },

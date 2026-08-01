@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Persona } from "@/lib/db";
+import { BASE_PATH } from "@/lib/basePath";
 import RunSteps, { RunState } from "./RunSteps";
 
 type Bucket = { name: string; description: string };
@@ -9,6 +10,7 @@ type Bucket = { name: string; description: string };
 export default function PipelineBoard({ personas }: { personas: Persona[] }) {
   const [personaId, setPersonaId] = useState(personas[0]?.id ?? "");
   const [topic, setTopic] = useState("");
+  const [sourceUrl, setSourceUrl] = useState("");
   const [bucketName, setBucketName] = useState("");
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -28,10 +30,15 @@ export default function PipelineBoard({ personas }: { personas: Persona[] }) {
     }
     setCreating(true);
     try {
-      const res = await fetch("/contentstudio/api/runs", {
+      const res = await fetch(`${BASE_PATH}/api/runs`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ persona_id: personaId, topic, content_bucket: activeBucket }),
+        body: JSON.stringify({
+          persona_id: personaId,
+          topic,
+          content_bucket: activeBucket,
+          source_url: sourceUrl.trim(),
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to create run");
@@ -84,6 +91,19 @@ export default function PipelineBoard({ personas }: { personas: Persona[] }) {
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
           />
+        </div>
+        <div>
+          <label className="label">Remix source URL (optional)</label>
+          <input
+            className="input"
+            placeholder="Paste a TikTok/YouTube/Instagram URL to remix its hook and structure"
+            value={sourceUrl}
+            onChange={(e) => setSourceUrl(e.target.value)}
+          />
+          <p className="mt-1 text-xs text-neutral-500">
+            When set, the pipeline gets an extra "Remix" step that extracts the source video's hook
+            pattern before writing the script — the topic above still sets what it's actually about.
+          </p>
         </div>
         {error && <p className="text-sm text-red-400">{error}</p>}
         <button type="submit" className="btn" disabled={creating || !personaId}>
