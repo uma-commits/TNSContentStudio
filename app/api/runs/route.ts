@@ -15,7 +15,9 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { persona_id, topic, content_bucket, source_url } = body;
+  const { persona_id, topic, content_bucket, source_url, template } = body;
+
+  const TEMPLATES = ["talking_head", "hook_demo", "text_on_screen", "carousel"];
 
   if (!persona_id || !topic || !content_bucket) {
     return NextResponse.json({ error: "persona_id, topic, content_bucket are required" }, { status: 400 });
@@ -26,14 +28,17 @@ export async function POST(req: NextRequest) {
   if (source_url && typeof source_url !== "string") {
     return NextResponse.json({ error: "source_url must be a string" }, { status: 400 });
   }
+  if (template && !TEMPLATES.includes(template)) {
+    return NextResponse.json({ error: `template must be one of: ${TEMPLATES.join(", ")}` }, { status: 400 });
+  }
 
   const persona = db.prepare(`SELECT id FROM personas WHERE id = ?`).get(persona_id);
   if (!persona) return NextResponse.json({ error: "persona not found" }, { status: 404 });
 
   const id = newId();
   db.prepare(
-    `INSERT INTO runs (id, persona_id, topic, content_bucket, source_url) VALUES (?, ?, ?, ?, ?)`
-  ).run(id, persona_id, topic.trim(), content_bucket, (source_url || "").trim());
+    `INSERT INTO runs (id, persona_id, topic, content_bucket, source_url, template) VALUES (?, ?, ?, ?, ?, ?)`
+  ).run(id, persona_id, topic.trim(), content_bucket, (source_url || "").trim(), template || "talking_head");
 
   const run = db.prepare(`SELECT * FROM runs WHERE id = ?`).get(id) as Run;
   return NextResponse.json({ run }, { status: 201 });

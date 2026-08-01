@@ -17,7 +17,12 @@ type RunRow = {
   created_at: string;
 };
 
-export default function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ source_url?: string }>;
+}) {
+  const { source_url } = await searchParams;
   const personas = db.prepare(`SELECT * FROM personas ORDER BY created_at DESC`).all() as Persona[];
   const runs = db
     .prepare(
@@ -39,9 +44,14 @@ export default function DashboardPage() {
             image prompt → image → voice → video → finalize.
           </p>
         </div>
-        <Link href="/persona" className="btn-ghost">
-          Manage personas →
-        </Link>
+        <div className="flex gap-2">
+          <Link href="/spy" className="btn-ghost">
+            Account spy →
+          </Link>
+          <Link href="/persona" className="btn-ghost">
+            Manage personas →
+          </Link>
+        </div>
       </header>
 
       {personas.length === 0 ? (
@@ -55,7 +65,7 @@ export default function DashboardPage() {
           </p>
         </div>
       ) : (
-        <PipelineBoard personas={personas} />
+        <PipelineBoard personas={personas} initialSourceUrl={source_url ?? ""} />
       )}
 
       <section>

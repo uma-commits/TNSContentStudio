@@ -6,14 +6,19 @@ import { BASE_PATH } from "@/lib/basePath";
 export type RunState = {
   id: string;
   source_url: string;
+  template: string;
   remix_status: string;
   remix_output: string | null;
   script_status: string;
   script_output: string | null;
+  review_status: string;
+  review_output: string | null;
   image_prompt_status: string;
   image_status: string;
   voice_status: string;
   video_status: string;
+  carousel_status: string;
+  carousel_paths: string | null;
   finalize_status: string;
   final_output: string | null;
   [key: string]: unknown;
@@ -22,20 +27,25 @@ export type RunState = {
 type Step = { key: string; label: string; endpoint: string; statusKey: keyof RunState };
 
 const REMIX_STEP: Step = { key: "remix", label: "Remix", endpoint: "remix", statusKey: "remix_status" };
+const SCRIPT_STEP: Step = { key: "script", label: "Script", endpoint: "script", statusKey: "script_status" };
+const REVIEW_STEP: Step = { key: "review", label: "Review", endpoint: "review", statusKey: "review_status" };
+const FINALIZE_STEP: Step = { key: "finalize", label: "Finalize", endpoint: "finalize", statusKey: "finalize_status" };
 
-const FREE_STEPS: Step[] = [
-  { key: "script", label: "Script", endpoint: "script", statusKey: "script_status" },
+const VIDEO_STEPS: Step[] = [
   { key: "image-prompt", label: "Image Prompt", endpoint: "image-prompt", statusKey: "image_prompt_status" },
   { key: "image", label: "Image", endpoint: "image", statusKey: "image_status" },
   { key: "voice", label: "Voice", endpoint: "voice", statusKey: "voice_status" },
   { key: "video", label: "Video", endpoint: "video", statusKey: "video_status" },
-  { key: "finalize", label: "Finalize", endpoint: "finalize", statusKey: "finalize_status" },
+];
+
+const CAROUSEL_STEPS: Step[] = [
+  { key: "image-prompt", label: "Image Prompt", endpoint: "image-prompt", statusKey: "image_prompt_status" },
+  { key: "image", label: "Image", endpoint: "image", statusKey: "image_status" },
+  { key: "carousel", label: "Carousel Slides", endpoint: "carousel", statusKey: "carousel_status" },
 ];
 
 const HEYGEN_STEPS: Step[] = [
-  { key: "script", label: "Script", endpoint: "script", statusKey: "script_status" },
   { key: "avatar-video", label: "Avatar Video", endpoint: "avatar-video", statusKey: "video_status" },
-  { key: "finalize", label: "Finalize", endpoint: "finalize", statusKey: "finalize_status" },
 ];
 
 export default function RunSteps({
@@ -48,8 +58,16 @@ export default function RunSteps({
   const [run, setRun] = useState<RunState>(initialRun);
   const [error, setError] = useState<string | null>(null);
   const [runningStep, setRunningStep] = useState<string | null>(null);
-  const baseSteps = videoEngine === "heygen" ? HEYGEN_STEPS : FREE_STEPS;
-  const steps = run.source_url ? [REMIX_STEP, ...baseSteps] : baseSteps;
+
+  const middleSteps =
+    videoEngine === "heygen" ? HEYGEN_STEPS : run.template === "carousel" ? CAROUSEL_STEPS : VIDEO_STEPS;
+  const steps = [
+    ...(run.source_url ? [REMIX_STEP] : []),
+    SCRIPT_STEP,
+    REVIEW_STEP,
+    ...middleSteps,
+    FINALIZE_STEP,
+  ];
 
   async function runStep(endpoint: string) {
     setError(null);
@@ -95,6 +113,7 @@ export default function RunSteps({
       {error && <p className="mt-4 text-sm text-red-400">{error}</p>}
       {run.remix_status === "done" && run.remix_output && <RemixPreview output={run.remix_output} />}
       {run.script_status === "done" && run.script_output && <ScriptPreview output={run.script_output} />}
+      {run.review_status === "done" && run.review_output && <ReviewPreview output={run.review_output} />}
       {run.finalize_status === "done" && run.final_output && <FinalOutput output={run.final_output} />}
     </div>
   );
@@ -175,12 +194,72 @@ function ScriptPreview({ output }: { output: string }) {
   );
 }
 
+function ReviewPreview({ output }: { output: string }) {
+  const review = JSON.parse(output) as {
+    hook_strength: number;
+    retention_risk: string;
+    compliance_flags: string[];
+    suggestions: string[];
+    verdict: "ready" | "needs_revision";
+  };
+  return (
+    <div className="mt-6 space-y-2 border-t border-neutral-800 pt-6 text-sm">
+      <h3 className="mb-1 flex items-center gap-2 text-sm font-medium text-neutral-300">
+        Expert review
+        <span
+          className={`badge ${
+            review.verdict === "ready" ? "bg-emerald-900/50 text-emerald-300" : "bg-amber-900/50 text-amber-300"
+          }`}
+        >
+          {review.verdict === "ready" ? "Ready" : "Needs revision"}
+        </span>
+      </h3>
+      <p>
+        <span className="text-neutral-500">Hook strength: </span>
+        {review.hook_strength}/10
+      </p>
+      <p>
+        <span className="text-neutral-500">Retention risk: </span>
+        {review.retention_risk}
+      </p>
+      {review.compliance_flags?.length > 0 && (
+        <p className="text-amber-300">
+          <span className="text-neutral-500">Compliance flags: </span>
+          {review.compliance_flags.join("; ")}
+        </p>
+      )}
+      {review.suggestions?.length > 0 && (
+        <ul className="list-inside list-disc text-neutral-400">
+          {review.suggestions.map((s, i) => (
+            <li key={i}>{s}</li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function FinalOutput({ output }: { output: string }) {
-  const parsed = JSON.parse(output) as { video_url: string; caption: string; hashtags: string[] };
+  const parsed = JSON.parse(output) as {
+    video_url?: string;
+    slide_urls?: string[];
+    caption: string;
+    hashtags: string[];
+  };
   return (
     <div className="mt-6 border-t border-neutral-800 pt-6">
-      <h3 className="mb-3 text-sm font-medium text-neutral-300">Finished reel</h3>
-      <video src={parsed.video_url} controls className="max-h-[480px] rounded-lg border border-neutral-800" />
+      <h3 className="mb-3 text-sm font-medium text-neutral-300">Finished {parsed.slide_urls ? "carousel" : "reel"}</h3>
+      {parsed.video_url && (
+        <video src={parsed.video_url} controls className="max-h-[480px] rounded-lg border border-neutral-800" />
+      )}
+      {parsed.slide_urls && (
+        <div className="flex gap-3 overflow-x-auto">
+          {parsed.slide_urls.map((url, i) => (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img key={i} src={url} alt={`Slide ${i + 1}`} className="h-[480px] rounded-lg border border-neutral-800" />
+          ))}
+        </div>
+      )}
       <p className="mt-3 text-sm text-neutral-300">{parsed.caption}</p>
       <p className="mt-1 text-sm text-neutral-500">{parsed.hashtags.map((h) => `#${h.replace(/^#/, "")}`).join(" ")}</p>
     </div>

@@ -40,12 +40,19 @@ db.exec(`
     topic TEXT NOT NULL,
     content_bucket TEXT NOT NULL,
     source_url TEXT NOT NULL DEFAULT '',
+    template TEXT NOT NULL DEFAULT 'talking_head',   -- 'talking_head' | 'hook_demo' | 'text_on_screen' | 'carousel'
 
     remix_status TEXT NOT NULL DEFAULT 'pending',
     remix_output TEXT,
 
     script_status TEXT NOT NULL DEFAULT 'pending',
     script_output TEXT,
+
+    review_status TEXT NOT NULL DEFAULT 'pending',
+    review_output TEXT,
+
+    carousel_status TEXT NOT NULL DEFAULT 'pending',
+    carousel_paths TEXT,
 
     image_prompt_status TEXT NOT NULL DEFAULT 'pending',
     image_prompt_output TEXT,
@@ -66,6 +73,25 @@ db.exec(`
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now')),
     FOREIGN KEY (persona_id) REFERENCES personas(id)
+  );
+
+  CREATE TABLE IF NOT EXISTS spy_accounts (
+    id TEXT PRIMARY KEY,
+    platform TEXT NOT NULL,   -- 'youtube' | 'tiktok'
+    handle TEXT NOT NULL,
+    url TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS spy_posts (
+    id TEXT PRIMARY KEY,
+    account_id TEXT NOT NULL,
+    post_url TEXT NOT NULL,
+    title TEXT NOT NULL DEFAULT '',
+    view_count INTEGER,
+    first_seen_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(account_id, post_url),
+    FOREIGN KEY (account_id) REFERENCES spy_accounts(id)
   );
 `);
 
@@ -90,6 +116,11 @@ const runMigrations: [string, string][] = [
   ["source_url", `ALTER TABLE runs ADD COLUMN source_url TEXT NOT NULL DEFAULT ''`],
   ["remix_status", `ALTER TABLE runs ADD COLUMN remix_status TEXT NOT NULL DEFAULT 'pending'`],
   ["remix_output", `ALTER TABLE runs ADD COLUMN remix_output TEXT`],
+  ["template", `ALTER TABLE runs ADD COLUMN template TEXT NOT NULL DEFAULT 'talking_head'`],
+  ["review_status", `ALTER TABLE runs ADD COLUMN review_status TEXT NOT NULL DEFAULT 'pending'`],
+  ["review_output", `ALTER TABLE runs ADD COLUMN review_output TEXT`],
+  ["carousel_status", `ALTER TABLE runs ADD COLUMN carousel_status TEXT NOT NULL DEFAULT 'pending'`],
+  ["carousel_paths", `ALTER TABLE runs ADD COLUMN carousel_paths TEXT`],
 ];
 for (const [column, sql] of runMigrations) {
   if (!existingRunColumns.has(column)) db.exec(sql);
@@ -117,10 +148,15 @@ export type Run = {
   topic: string;
   content_bucket: string;
   source_url: string;
+  template: string;
   remix_status: string;
   remix_output: string | null;
   script_status: string;
   script_output: string | null;
+  review_status: string;
+  review_output: string | null;
+  carousel_status: string;
+  carousel_paths: string | null;
   image_prompt_status: string;
   image_prompt_output: string | null;
   image_status: string;
@@ -139,3 +175,20 @@ export type Run = {
 export function touchRun(id: string) {
   db.prepare(`UPDATE runs SET updated_at = datetime('now') WHERE id = ?`).run(id);
 }
+
+export type SpyAccount = {
+  id: string;
+  platform: string;
+  handle: string;
+  url: string;
+  created_at: string;
+};
+
+export type SpyPost = {
+  id: string;
+  account_id: string;
+  post_url: string;
+  title: string;
+  view_count: number | null;
+  first_seen_at: string;
+};

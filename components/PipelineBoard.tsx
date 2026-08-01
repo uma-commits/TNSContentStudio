@@ -7,10 +7,24 @@ import RunSteps, { RunState } from "./RunSteps";
 
 type Bucket = { name: string; description: string };
 
-export default function PipelineBoard({ personas }: { personas: Persona[] }) {
+const TEMPLATES = [
+  { value: "talking_head", label: "Talking Head", description: "AI-influencer portrait, pan/zoom, spoken voiceover." },
+  { value: "hook_demo", label: "Hook + Demo", description: "Hook shot, then a demo-style scene, captions burned in." },
+  { value: "text_on_screen", label: "Text on Screen", description: "Looping visual with the script's lines burned in as captions." },
+  { value: "carousel", label: "Carousel", description: "A set of swipeable slide images instead of a video. No voiceover." },
+] as const;
+
+export default function PipelineBoard({
+  personas,
+  initialSourceUrl = "",
+}: {
+  personas: Persona[];
+  initialSourceUrl?: string;
+}) {
   const [personaId, setPersonaId] = useState(personas[0]?.id ?? "");
   const [topic, setTopic] = useState("");
-  const [sourceUrl, setSourceUrl] = useState("");
+  const [sourceUrl, setSourceUrl] = useState(initialSourceUrl);
+  const [template, setTemplate] = useState<(typeof TEMPLATES)[number]["value"]>("talking_head");
   const [bucketName, setBucketName] = useState("");
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,6 +52,7 @@ export default function PipelineBoard({ personas }: { personas: Persona[] }) {
           topic,
           content_bucket: activeBucket,
           source_url: sourceUrl.trim(),
+          template: persona?.video_engine === "heygen" ? "talking_head" : template,
         }),
       });
       const data = await res.json();
@@ -92,6 +107,30 @@ export default function PipelineBoard({ personas }: { personas: Persona[] }) {
             onChange={(e) => setTopic(e.target.value)}
           />
         </div>
+        {persona?.video_engine !== "heygen" && (
+          <div>
+            <label className="label">Template</label>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {TEMPLATES.map((t) => (
+                <button
+                  key={t.value}
+                  type="button"
+                  className={`rounded-lg border px-3 py-2 text-left text-xs ${
+                    template === t.value
+                      ? "border-neutral-100 bg-neutral-100 text-neutral-950"
+                      : "border-neutral-800 text-neutral-300 hover:border-neutral-600"
+                  }`}
+                  onClick={() => setTemplate(t.value)}
+                >
+                  <div className="font-medium">{t.label}</div>
+                  <div className={template === t.value ? "text-neutral-700" : "text-neutral-500"}>
+                    {t.description}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <div>
           <label className="label">Remix source URL (optional)</label>
           <input

@@ -14,6 +14,11 @@ const FREE_MODELS = {
     "openai/gpt-oss-20b:free",
     "nvidia/nemotron-nano-9b-v2:free",
   ],
+  review: [
+    "google/gemma-3-27b-it:free",
+    "nvidia/nemotron-nano-9b-v2:free",
+    "openai/gpt-oss-20b:free",
+  ],
 } as const;
 
 export type ChatTask = keyof typeof FREE_MODELS;

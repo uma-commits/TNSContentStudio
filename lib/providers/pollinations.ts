@@ -3,7 +3,9 @@ import path from "path";
 import { mediaDir } from "./paths";
 
 // Pollinations.ai — free, no API key, text-to-image via a plain GET URL.
-export async function generateImage(prompt: string, runId: string): Promise<string> {
+// `filename` lets a run generate more than one distinct image (e.g. the
+// hook+demo template's second "demo" scene) without overwriting the first.
+export async function generateImage(prompt: string, runId: string, filename = "character.jpg"): Promise<string> {
   const seed = Math.abs(hashCode(runId + prompt));
   const url =
     `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}` +
@@ -15,7 +17,7 @@ export async function generateImage(prompt: string, runId: string): Promise<stri
   const buffer = Buffer.from(await res.arrayBuffer());
   const dir = mediaDir(runId);
   await fs.mkdir(dir, { recursive: true });
-  const filePath = path.join(dir, "character.jpg");
+  const filePath = path.join(dir, filename);
   await fs.writeFile(filePath, buffer);
   return filePath;
 }
