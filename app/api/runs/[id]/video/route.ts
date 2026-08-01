@@ -12,6 +12,8 @@ type ScriptOutput = {
   cta: string;
 };
 
+const MIN_SCENE_SECONDS = 1.5;
+
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const loaded = loadRunWithPersona(id);
@@ -24,9 +26,12 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
 
   const duration = run.voice_duration_seconds;
   const script = run.script_output ? (JSON.parse(run.script_output) as ScriptOutput) : null;
+  const { final_prompt: finalPrompt } = run.image_prompt_output
+    ? (JSON.parse(run.image_prompt_output) as { final_prompt: string })
+    : { final_prompt: "" };
 
   return runStage(id, "video_status", async () => {
-    const scenes = await buildScenes(run.template, run.image_path!, duration, script, id);
+    const scenes = await buildScenes(run.template, run.image_path!, finalPrompt, duration, script, id);
     const videoPath = await generateReelVideo(scenes, run.voice_path!, duration, id);
     return { video_path: videoPath };
   });
@@ -34,14 +39,31 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
 
 async function buildScenes(
   template: string,
-  imagePath: string,
+  baseImagePath: string,
+  finalPrompt: string,
   duration: number,
   script: ScriptOutput | null,
   runId: string
 ): Promise<Scene[]> {
-  if (template === "text_on_screen" && script) {
-    const segments = computeCaptionSegments([script.hook, ...script.body, script.close, script.cta], duration);
-    return [{ imagePath, durationSeconds: duration, captionSegments: segments }];
+  if ((template === "talking_head" || template === "text_on_screen") && script) {
+    const parts = [script.hook, ...script.body, `${script.close} ${script.cta}`.trim()].filter(Boolean);
+    const withCaptions = template === "text_on_screen";
+    const timedSegments = computeCaptionSegments(parts, duration);
+
+    const scenes: Scene[] = [];
+    for (let i = 0; i < timedSegments.length; i++) {
+      const seg = timedSegments[i];
+      const sceneDuration = Math.max(MIN_SCENE_SECONDS, seg.end - seg.start);
+      const imagePath =
+        i === 0 ? baseImagePath : await generateImage(scenePrompt(finalPrompt, seg.text), runId, `scene-${i}.jpg`);
+
+      scenes.push({
+        imagePath,
+        durationSeconds: sceneDuration,
+        captionSegments: withCaptions ? [{ text: seg.text, start: 0, end: sceneDuration }] : undefined,
+      });
+    }
+    return scenes;
   }
 
   if (template === "hook_demo" && script) {
@@ -55,7 +77,7 @@ async function buildScenes(
 
     return [
       {
-        imagePath,
+        imagePath: baseImagePath,
         durationSeconds: hookDuration,
         captionSegments: [{ text: script.hook_on_screen_text || script.hook, start: 0, end: hookDuration }],
       },
@@ -67,6 +89,13 @@ async function buildScenes(
     ];
   }
 
-  // talking_head (default): plain pan/zoom, no burned captions.
-  return [{ imagePath, durationSeconds: duration }];
+  // Fallback (no script available yet, or an unrecognized template): plain
+  // pan/zoom over the one base image, no burned captions.
+  return [{ imagePath: baseImagePath, durationSeconds: duration }];
+}
+
+function scenePrompt(finalPrompt: string, sceneText: string): string {
+  return finalPrompt
+    ? `${finalPrompt} The scene depicts: ${sceneText}`
+    : `A scene depicting: ${sceneText}`;
 }

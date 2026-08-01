@@ -8,9 +8,9 @@ import RunSteps, { RunState } from "./RunSteps";
 type Bucket = { name: string; description: string };
 
 const TEMPLATES = [
-  { value: "talking_head", label: "Talking Head", description: "AI-influencer portrait, pan/zoom, spoken voiceover." },
+  { value: "talking_head", label: "Talking Head", description: "A new AI-generated scene per script line, pan/zoom, spoken voiceover, no captions." },
   { value: "hook_demo", label: "Hook + Demo", description: "Hook shot, then a demo-style scene, captions burned in." },
-  { value: "text_on_screen", label: "Text on Screen", description: "Looping visual with the script's lines burned in as captions." },
+  { value: "text_on_screen", label: "Text on Screen", description: "A new scene per line with that line's captions burned in — no talking head." },
   { value: "carousel", label: "Carousel", description: "A set of swipeable slide images instead of a video. No voiceover." },
 ] as const;
 

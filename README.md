@@ -51,8 +51,9 @@ part manually, or share a project ID and it can be finished from here.
 
 ## What's intentionally different from the original n8n workflow
 
-- The default (free) engine has no paid APIs and no true lip-sync — the video step is a Ken
-  Burns pan/zoom over the generated portrait, synced to the voiceover length.
+- The default (free) engine has no true lip-sync — the video step generates a new image per script
+  line (Talking Head, Text on Screen) or scene (Hook + Demo) and Ken Burns pan/zooms across them,
+  synced to the voiceover length, instead of one static portrait for the whole video.
   Personas that need real lip-sync can opt into the HeyGen engine instead
   (`lib/providers/heygen.ts`), which is paid per HeyGen's pricing.
 - No Instagram auto-posting — the pipeline stops at a reviewable finished reel + caption +

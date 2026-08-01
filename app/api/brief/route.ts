@@ -3,7 +3,7 @@ import { db, Run } from "@/lib/db";
 import { newId } from "@/lib/ids";
 import { scrapePageText } from "@/lib/providers/scrape";
 import { chatJSON } from "@/lib/providers/openrouter";
-import { EDGE_VOICES } from "@/lib/edgeVoices";
+import { EDGE_VOICES, VOICE_GENDER, inferGender, pickVoiceForGender } from "@/lib/edgeVoices";
 
 const TEMPLATES = ["talking_head", "hook_demo", "text_on_screen", "carousel"];
 
@@ -77,9 +77,9 @@ Return ONLY a single JSON object, no prose, no markdown fences, with this exact 
     "backstory": "string — 1-3 sentences, who this creator is and why they'd credibly talk about this product",
     "voice_dna": "string — tone, pacing, delivery",
     "slang": "string — expressions this persona uses, or empty string",
-    "physical_description": "string — age, build, face, hair, typical clothing, for consistent AI image generation",
+    "physical_description": "string — age, build, face, hair, typical clothing, for consistent AI image generation. Must clearly state the persona's gender (e.g. 'a man in his...' / 'a woman in her...') so the voice can be matched.",
     "visual_styles": [{"name": "string", "prompt": "string — backdrop, lighting, mood"}],
-    "edge_voice": "one of: ${EDGE_VOICES.join(", ")}"
+    "edge_voice": "MUST match the persona's gender — male voices: ${EDGE_VOICES.filter((v) => VOICE_GENDER[v] === "male").join(", ")}. Female voices: ${EDGE_VOICES.filter((v) => VOICE_GENDER[v] === "female").join(", ")}."
   },
   "content_bucket": {"name": "string", "description": "string"},
   "template": "one of: ${TEMPLATES.join(", ")}",
@@ -109,9 +109,11 @@ Return ONLY a single JSON object, no prose, no markdown fences, with this exact 
     );
   }
 
-  const edgeVoice = (EDGE_VOICES as readonly string[]).includes(brief.persona.edge_voice)
-    ? brief.persona.edge_voice
-    : EDGE_VOICES[0];
+  // Never trust the LLM to have actually matched voice to gender — infer it
+  // from the persona text itself and override if they disagree. This is the
+  // failure mode that produced a male-described persona with a female voice.
+  const gender = inferGender(`${brief.persona.physical_description} ${brief.persona.backstory}`);
+  const edgeVoice = pickVoiceForGender(gender, brief.persona.edge_voice);
   const template = TEMPLATES.includes(brief.template) ? brief.template : "talking_head";
 
   const personaId = newId();
