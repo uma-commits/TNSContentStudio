@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { loadRunWithPersona, runStage } from "@/lib/stage";
 import { generateReelVideo, Scene } from "@/lib/providers/video";
 import { generateImage } from "@/lib/providers/nanobanana";
-import { computeCaptionSegments } from "@/lib/captionTiming";
+import { computeCaptionSegments, splitIntoBeats } from "@/lib/captionTiming";
 import { extractStat, generateStatChartClip } from "@/lib/providers/chart";
 
 type ScriptOutput = {
@@ -48,13 +48,16 @@ async function buildScenes(
 ): Promise<Scene[]> {
   if ((template === "talking_head" || template === "text_on_screen") && script) {
     const parts = [script.hook, ...script.body, `${script.close} ${script.cta}`.trim()].filter(Boolean);
-    const withCaptions = template === "text_on_screen";
     const timedSegments = computeCaptionSegments(parts, duration);
 
     // Scene 0 always stays the persona's base image (identity anchor).
     // Any later line that cites a stat (a % or $ figure) gets an animated
     // chart scene instead of another generated image — a mix of character
     // shots and real motion-graphic data visuals, not one style throughout.
+    // Every scene (both templates now — matching how virtually all modern
+    // UGC shorts caption continuously) gets its text burned in as fast
+    // ~4-word "beats" that pop on/off within the scene's hold time, instead
+    // of one static block of text for the whole scene.
     const scenes: Scene[] = [];
     for (let i = 0; i < timedSegments.length; i++) {
       const seg = timedSegments[i];
@@ -62,19 +65,18 @@ async function buildScenes(
       const stat = i > 0 ? extractStat(seg.text) : null;
 
       if (stat) {
-        const chartClipPath = await generateStatChartClip(stat, seg.text, sceneDuration, runId, `chart-${i}.mp4`);
+        const shortLabel = splitIntoBeats(seg.text, 8)[0];
+        const chartClipPath = await generateStatChartClip(stat, shortLabel, sceneDuration, runId, `chart-${i}.mp4`);
         scenes.push({ clipPath: chartClipPath, durationSeconds: sceneDuration });
         continue;
       }
 
       const imagePath =
         i === 0 ? baseImagePath : await generateImage(scenePrompt(finalPrompt, seg.text), runId, `scene-${i}.jpg`);
+      const beats = splitIntoBeats(seg.text);
+      const beatSegments = computeCaptionSegments(beats, sceneDuration);
 
-      scenes.push({
-        imagePath,
-        durationSeconds: sceneDuration,
-        captionSegments: withCaptions ? [{ text: seg.text, start: 0, end: sceneDuration }] : undefined,
-      });
+      scenes.push({ imagePath, durationSeconds: sceneDuration, captionSegments: beatSegments });
     }
     return scenes;
   }
@@ -88,16 +90,19 @@ async function buildScenes(
     )}`;
     const demoImagePath = await generateImage(demoPrompt, runId, "demo.jpg");
 
+    const hookBeats = splitIntoBeats(script.hook_on_screen_text || script.hook);
+    const demoBeats = splitIntoBeats(script.body.join(" "));
+
     return [
       {
         imagePath: baseImagePath,
         durationSeconds: hookDuration,
-        captionSegments: [{ text: script.hook_on_screen_text || script.hook, start: 0, end: hookDuration }],
+        captionSegments: computeCaptionSegments(hookBeats, hookDuration),
       },
       {
         imagePath: demoImagePath,
         durationSeconds: demoDuration,
-        captionSegments: [{ text: script.body.join(" "), start: 0, end: demoDuration }],
+        captionSegments: computeCaptionSegments(demoBeats, demoDuration),
       },
     ];
   }

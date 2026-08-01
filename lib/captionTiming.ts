@@ -22,3 +22,15 @@ export function computeCaptionSegments(parts: string[], totalDurationSeconds: nu
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
+
+// Breaks a line into short phrase "beats" (~3-5 words) for fast-changing
+// on-screen captions — the modern short-form pacing where text pops
+// on/off every second or two, rather than one caption per full sentence.
+export function splitIntoBeats(text: string, maxWordsPerBeat = 4): string[] {
+  const words = text.trim().split(/\s+/).filter(Boolean);
+  const beats: string[] = [];
+  for (let i = 0; i < words.length; i += maxWordsPerBeat) {
+    beats.push(words.slice(i, i + maxWordsPerBeat).join(" "));
+  }
+  return beats.length ? beats : [text];
+}
