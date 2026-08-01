@@ -1,7 +1,7 @@
 # Content Studio
 
 Topic → script → image → voice → video pipeline for AI-influencer reels, deployed at
-`www.truenorthlink.com/labs/aicontentstudio`. Each persona picks a video engine:
+`www.truenorthlink.com/labs/ugc_content_yorbi`. Each persona picks a video engine:
 
 - **Free** — OpenRouter free-tier LLMs (Nemotron/Gemma/GPT-OSS) for script + image prompt,
   Pollinations.ai for images, edge-tts for voice, ffmpeg for a pan/zoom video. No paid APIs, no
@@ -18,7 +18,7 @@ cp .env.example .env.local                      # then fill in the values
 npm run dev
 ```
 
-Open http://localhost:3000/labs/aicontentstudio, create a persona, then start a run.
+Open http://localhost:3000/labs/ugc_content_yorbi, create a persona, then start a run.
 
 `edge-tts` and `ffmpeg` must be installed locally for the voice/video steps to work outside
 Docker: `pip install edge-tts` and `apt install ffmpeg` (or the equivalent for your OS).
@@ -33,13 +33,13 @@ Docker: `pip install edge-tts` and `apt install ffmpeg` (or the equivalent for y
 
 ## Deploying
 
-The app is a standalone Next.js build behind `basePath: /labs/aicontentstudio`, packaged via the
+The app is a standalone Next.js build behind `basePath: /labs/ugc_content_yorbi`, packaged via the
 included `Dockerfile` (Node 20-slim, ffmpeg + edge-tts baked in) and `railway.json`. To deploy:
 
 1. Create a Railway project/service pointed at this repo (or `railway up` from a linked project).
 2. Set `OPENROUTER_API_KEY` and `ADMIN_PASSWORD_HASH` as service variables.
 3. Attach a persistent volume at `/app/data` so runs/media survive redeploys.
-4. Route `www.truenorthlink.com/labs/aicontentstudio` to this service the same way `/ideaforge` is
+4. Route `www.truenorthlink.com/labs/ugc_content_yorbi` to this service the same way `/ideaforge` is
    routed to its service (reverse proxy / path-based routing at the domain level) — this repo
    only owns the app itself, not the domain-level routing rule.
 
