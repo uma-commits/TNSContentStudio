@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { loadRunWithPersona, runStage } from "@/lib/stage";
 import { generateReelVideo, Scene } from "@/lib/providers/video";
-import { generateImage } from "@/lib/providers/pollinations";
+import { generateImage } from "@/lib/providers/nanobanana";
 import { computeCaptionSegments } from "@/lib/captionTiming";
 
 type ScriptOutput = {

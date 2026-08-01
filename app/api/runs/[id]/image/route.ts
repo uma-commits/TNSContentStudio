@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { loadRunWithPersona, runStage } from "@/lib/stage";
-import { generateImage } from "@/lib/providers/pollinations";
+import { generateImage } from "@/lib/providers/nanobanana";
 
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

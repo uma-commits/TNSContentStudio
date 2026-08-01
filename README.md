@@ -4,8 +4,9 @@ Topic → script → image → voice → video pipeline for AI-influencer reels,
 `www.truenorthlink.com/labs/ugc_content_yorbi`. Each persona picks a video engine:
 
 - **Free** — OpenRouter free-tier LLMs (Nemotron/Gemma/GPT-OSS) for script + image prompt,
-  Pollinations.ai for images, edge-tts for voice, ffmpeg for a pan/zoom video. No paid APIs, no
-  real lip-sync.
+  Nano Banana 2 Lite (free under Google's daily quota, then ~$0.034/image; falls back to
+  Pollinations.ai if `GOOGLE_API_KEY` is unset) for images, edge-tts for voice, ffmpeg for a
+  pan/zoom video. No real lip-sync.
 - **HeyGen** — one paid HeyGen avatar-video call replaces the image/voice/video steps with a
   real lip-synced talking-head video, using a HeyGen avatar ID + voice ID configured on the persona.
 
@@ -30,6 +31,8 @@ Docker: `pip install edge-tts` and `apt install ffmpeg` (or the equivalent for y
   disabled (dev convenience only) — **must** be set in production.
 - `DATA_DIR` — where the SQLite DB and generated media live. Defaults to `./data`.
 - `HEYGEN_API_KEY` — only needed for personas using the HeyGen engine.
+- `GOOGLE_API_KEY` — optional. Powers the Nano Banana 2 Lite image step; without it the app
+  silently falls back to free Pollinations images.
 
 ## Deploying
 
