@@ -4,14 +4,17 @@ import { CaptionSegment } from "../captionTiming";
 
 const execFileAsync = promisify(execFile);
 
-// ffmpeg drawtext needs ':' , ''' and '%' escaped inside the filter string,
-// and newlines expressed literally for wrapped multi-line text.
+// ffmpeg drawtext needs ':' and ''' escaped inside the filter string. '%'
+// is NOT escaped with a backslash — drawtext's text-expansion pass treats
+// '%' specially regardless (needing '%%' to mean a literal percent), so
+// every drawtext call here instead passes expansion=none, which makes '%'
+// fully literal and needs no escaping at all — verified: '\%' still throws
+// "Stray %" with expansion on, so escaping alone is not a fix by itself.
 export function escapeDrawtext(text: string): string {
   return text
     .replace(/\\/g, "\\\\")
     .replace(/:/g, "\\:")
-    .replace(/'/g, "’")
-    .replace(/%/g, "\\%");
+    .replace(/'/g, "’");
 }
 
 export function wrapText(text: string, maxCharsPerLine = 28): string {
@@ -39,7 +42,7 @@ export function timedDrawtextFilter(segments: CaptionSegment[], fontsize = 58): 
     .map((seg) => {
       const wrapped = escapeDrawtext(wrapText(seg.text));
       return (
-        `drawtext=text='${wrapped}':fontcolor=white:fontsize=${fontsize}:` +
+        `drawtext=text='${wrapped}':fontcolor=white:fontsize=${fontsize}:expansion=none:` +
         `box=1:boxcolor=black@0.55:boxborderw=20:line_spacing=10:` +
         `x=(w-text_w)/2:y=h-text_h-160:` +
         `enable='between(t\\,${seg.start}\\,${seg.end})'`
@@ -53,7 +56,7 @@ export function timedDrawtextFilter(segments: CaptionSegment[], fontsize = 58): 
 export async function burnCaptionOnImage(imagePath: string, outPath: string, text: string): Promise<void> {
   const wrapped = escapeDrawtext(wrapText(text));
   const filter =
-    `drawtext=text='${wrapped}':fontcolor=white:fontsize=64:` +
+    `drawtext=text='${wrapped}':fontcolor=white:fontsize=64:expansion=none:` +
     `box=1:boxcolor=black@0.6:boxborderw=28:line_spacing=14:` +
     `x=(w-text_w)/2:y=(h-text_h)/2`;
 

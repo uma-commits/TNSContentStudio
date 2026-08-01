@@ -12,7 +12,11 @@ const FPS = 24;
 const ZOOM_EXPR = `min(zoom+0.0009,1.15)`;
 
 export type Scene = {
-  imagePath: string;
+  // Exactly one of imagePath (still image, pan/zoomed) or clipPath (an
+  // already-rendered clip, e.g. an animated chart from lib/providers/chart.ts)
+  // should be set.
+  imagePath?: string;
+  clipPath?: string;
   durationSeconds: number;
   captionSegments?: CaptionSegment[];
 };
@@ -41,7 +45,7 @@ export async function generateReelVideo(
   await fs.mkdir(dir, { recursive: true });
   const outPath = path.join(dir, "reel.mp4");
 
-  if (scenes.length === 1) {
+  if (scenes.length === 1 && scenes[0].imagePath) {
     const scene = scenes[0];
     await execFileAsync(
       "ffmpeg",
@@ -50,7 +54,7 @@ export async function generateReelVideo(
         "-loop",
         "1",
         "-i",
-        scene.imagePath,
+        scene.imagePath!,
         "-i",
         audioPath,
         "-vf",
@@ -79,6 +83,34 @@ export async function generateReelVideo(
   for (let i = 0; i < scenes.length; i++) {
     const scene = scenes[i];
     const clipPath = path.join(dir, `scene-${i}.mp4`);
+
+    if (scene.clipPath) {
+      // Already a rendered clip (e.g. an animated chart) — just normalize
+      // resolution/framerate/pix_fmt so it concats cleanly with the others.
+      await execFileAsync(
+        "ffmpeg",
+        [
+          "-y",
+          "-i",
+          scene.clipPath,
+          "-vf",
+          "scale=1080:1920,fps=24,format=yuv420p",
+          "-t",
+          String(scene.durationSeconds),
+          "-c:v",
+          "libx264",
+          "-preset",
+          "veryfast",
+          "-pix_fmt",
+          "yuv420p",
+          clipPath,
+        ],
+        { timeout: 60_000 }
+      );
+      clipPaths.push(clipPath);
+      continue;
+    }
+
     await execFileAsync(
       "ffmpeg",
       [
@@ -86,7 +118,7 @@ export async function generateReelVideo(
         "-loop",
         "1",
         "-i",
-        scene.imagePath,
+        scene.imagePath!,
         "-vf",
         panZoomFilter(scene.durationSeconds, scene.captionSegments),
         "-t",

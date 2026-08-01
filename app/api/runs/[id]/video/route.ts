@@ -3,6 +3,7 @@ import { loadRunWithPersona, runStage } from "@/lib/stage";
 import { generateReelVideo, Scene } from "@/lib/providers/video";
 import { generateImage } from "@/lib/providers/nanobanana";
 import { computeCaptionSegments } from "@/lib/captionTiming";
+import { extractStat, generateStatChartClip } from "@/lib/providers/chart";
 
 type ScriptOutput = {
   hook: string;
@@ -50,10 +51,22 @@ async function buildScenes(
     const withCaptions = template === "text_on_screen";
     const timedSegments = computeCaptionSegments(parts, duration);
 
+    // Scene 0 always stays the persona's base image (identity anchor).
+    // Any later line that cites a stat (a % or $ figure) gets an animated
+    // chart scene instead of another generated image — a mix of character
+    // shots and real motion-graphic data visuals, not one style throughout.
     const scenes: Scene[] = [];
     for (let i = 0; i < timedSegments.length; i++) {
       const seg = timedSegments[i];
       const sceneDuration = Math.max(MIN_SCENE_SECONDS, seg.end - seg.start);
+      const stat = i > 0 ? extractStat(seg.text) : null;
+
+      if (stat) {
+        const chartClipPath = await generateStatChartClip(stat, seg.text, sceneDuration, runId, `chart-${i}.mp4`);
+        scenes.push({ clipPath: chartClipPath, durationSeconds: sceneDuration });
+        continue;
+      }
+
       const imagePath =
         i === 0 ? baseImagePath : await generateImage(scenePrompt(finalPrompt, seg.text), runId, `scene-${i}.jpg`);
 
